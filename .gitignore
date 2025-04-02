@@ -1,5 +1,6 @@
 node_modules/
 .env
+activity_data.json
 .claude
 *.log
 CLAUDE.md
