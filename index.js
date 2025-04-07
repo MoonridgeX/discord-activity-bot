@@ -1,6 +1,7 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const config = require('./config');
 const ActivityTracker = require('./activityTracker');
+const Commands = require('./commands');
 
 const client = new Client({
     intents: [
@@ -12,17 +13,22 @@ const client = new Client({
 });
 
 const activityTracker = new ActivityTracker();
+const commands = new Commands(activityTracker);
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
     console.log(`Bot is ready and monitoring activity...`);
 });
 
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
-    activityTracker.trackMessage(message.author.id, message.channel.id);
-    console.log(`Tracked message from ${message.author.username} in #${message.channel.name}`);
+    const isCommand = await commands.handleCommand(message);
+    
+    if (!isCommand) {
+        activityTracker.trackMessage(message.author.id, message.channel.id);
+        console.log(`Tracked message from ${message.author.username} in #${message.channel.name}`);
+    }
 });
 
 client.on('guildMemberAdd', (member) => {
