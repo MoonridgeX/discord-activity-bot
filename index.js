@@ -1,7 +1,8 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
 const config = require('./config');
 const ActivityTracker = require('./activityTracker');
 const Commands = require('./commands');
+const { slashCommands, SlashCommandHandler } = require('./slashCommands');
 
 const client = new Client({
     intents: [
@@ -14,10 +15,24 @@ const client = new Client({
 
 const activityTracker = new ActivityTracker();
 const commands = new Commands(activityTracker);
+const slashCommandHandler = new SlashCommandHandler(activityTracker);
 
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     console.log(`Bot is ready and monitoring activity...`);
+    
+    const rest = new REST({ version: '10' }).setToken(config.token);
+    
+    try {
+        console.log('Registering slash commands...');
+        await rest.put(
+            Routes.applicationGuildCommands(client.user.id, config.guildId),
+            { body: slashCommands.map(command => command.toJSON()) }
+        );
+        console.log('Slash commands registered successfully!');
+    } catch (error) {
+        console.error('Error registering slash commands:', error);
+    }
 });
 
 client.on('messageCreate', async (message) => {
@@ -39,6 +54,10 @@ client.on('guildMemberAdd', (member) => {
 client.on('guildMemberRemove', (member) => {
     activityTracker.trackMemberLeave(member.id, member.user.username);
     console.log(`Member left: ${member.user.username}`);
+});
+
+client.on('interactionCreate', async (interaction) => {
+    await slashCommandHandler.handleInteraction(interaction);
 });
 
 client.login(config.token);

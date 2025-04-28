@@ -21,6 +21,14 @@ class ActivityTracker {
                     });
                 }
                 
+                if (parsed.weeklyStats) {
+                    Object.keys(parsed.weeklyStats).forEach(week => {
+                        if (Array.isArray(parsed.weeklyStats[week].activeUsers)) {
+                            parsed.weeklyStats[week].activeUsers = new Set(parsed.weeklyStats[week].activeUsers);
+                        }
+                    });
+                }
+                
                 return parsed;
             }
         } catch (error) {
@@ -30,6 +38,7 @@ class ActivityTracker {
             messages: {},
             dailyStats: {},
             memberEvents: {},
+            weeklyStats: {},
             lastUpdate: new Date().toISOString()
         };
     }
@@ -42,6 +51,14 @@ class ActivityTracker {
                 Object.keys(dataToSave.dailyStats).forEach(date => {
                     if (dataToSave.dailyStats[date].activeUsers instanceof Set) {
                         dataToSave.dailyStats[date].activeUsers = Array.from(dataToSave.dailyStats[date].activeUsers);
+                    }
+                });
+            }
+            
+            if (dataToSave.weeklyStats) {
+                Object.keys(dataToSave.weeklyStats).forEach(week => {
+                    if (dataToSave.weeklyStats[week].activeUsers instanceof Set) {
+                        dataToSave.weeklyStats[week].activeUsers = Array.from(dataToSave.weeklyStats[week].activeUsers);
                     }
                 });
             }
@@ -80,6 +97,8 @@ class ActivityTracker {
             
             this.activityData.dailyStats[today].totalMessages++;
             this.activityData.dailyStats[today].activeUsers.add(userId);
+            
+            this.updateWeeklyStats(userId, today);
             
             this.activityData.lastUpdate = new Date().toISOString();
             this.saveData();
@@ -126,6 +145,41 @@ class ActivityTracker {
         
         this.activityData.lastUpdate = new Date().toISOString();
         this.saveData();
+    }
+
+    getWeekKey(dateStr) {
+        const date = new Date(dateStr);
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - date.getDay());
+        return startOfWeek.toISOString().split('T')[0];
+    }
+
+    updateWeeklyStats(userId, dateStr) {
+        const weekKey = this.getWeekKey(dateStr);
+        
+        if (!this.activityData.weeklyStats[weekKey]) {
+            this.activityData.weeklyStats[weekKey] = {
+                totalMessages: 0,
+                activeUsers: new Set(),
+                userMessages: {}
+            };
+        }
+        
+        if (!this.activityData.weeklyStats[weekKey].userMessages[userId]) {
+            this.activityData.weeklyStats[weekKey].userMessages[userId] = 0;
+        }
+        
+        this.activityData.weeklyStats[weekKey].totalMessages++;
+        this.activityData.weeklyStats[weekKey].activeUsers.add(userId);
+        this.activityData.weeklyStats[weekKey].userMessages[userId]++;
+    }
+
+    getWeeklyStats(weekKey) {
+        return this.activityData.weeklyStats[weekKey] || {
+            totalMessages: 0,
+            activeUsers: new Set(),
+            userMessages: {}
+        };
     }
 }
 
