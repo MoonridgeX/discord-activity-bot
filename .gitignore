@@ -1,6 +1,9 @@
 node_modules/
 .env
 activity_data.json
+backups/
+export-*.json
+export-*.csv
 .claude
 *.log
 CLAUDE.md

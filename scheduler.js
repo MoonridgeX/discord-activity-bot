@@ -62,7 +62,48 @@ class Scheduler {
     }
 
     async sendWeeklyReport() {
-        console.log('Weekly report feature - coming soon!');
+        try {
+            const channel = await this.client.channels.fetch(this.reportChannelId);
+            if (!channel) return;
+
+            const lastWeek = new Date();
+            lastWeek.setDate(lastWeek.getDate() - 7);
+            const weekKey = this.activityTracker.getWeekKey(lastWeek.toISOString().split('T')[0]);
+            
+            const weekStats = this.activityTracker.getWeeklyStats(weekKey);
+            
+            const topUsers = Object.entries(weekStats.userMessages || {})
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .map(([userId, count], index) => `${index + 1}. <@${userId}> - ${count} messages`)
+                .join('\n') || 'No activity this week';
+            
+            const embed = new EmbedBuilder()
+                .setColor(0xFF6B6B)
+                .setTitle('📈 Weekly Activity Report')
+                .setDescription(`Week of ${lastWeek.toDateString()}`)
+                .addFields(
+                    { name: '💬 Total Messages', value: weekStats.totalMessages.toString(), inline: true },
+                    { name: '👥 Active Users', value: weekStats.activeUsers.size.toString(), inline: true },
+                    { name: '🏆 Top Contributors', value: topUsers, inline: false }
+                )
+                .setFooter({ text: 'Weekly summary - sent every Sunday' })
+                .setTimestamp();
+
+            await channel.send({ embeds: [embed] });
+            console.log('Weekly report sent successfully');
+        } catch (error) {
+            console.error('Error sending weekly report:', error);
+        }
+    }
+
+    startWeeklyReports() {
+        setInterval(() => {
+            const now = new Date();
+            if (now.getDay() === 0 && now.getHours() === 18 && now.getMinutes() === 0) {
+                this.sendWeeklyReport();
+            }
+        }, 60000);
     }
 }
 
