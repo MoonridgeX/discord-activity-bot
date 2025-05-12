@@ -3,6 +3,7 @@ const config = require('./config');
 const ActivityTracker = require('./activityTracker');
 const Commands = require('./commands');
 const { slashCommands, SlashCommandHandler } = require('./slashCommands');
+const { adminSlashCommands, AdminCommandHandler } = require('./adminCommands');
 
 const client = new Client({
     intents: [
@@ -16,6 +17,7 @@ const client = new Client({
 const activityTracker = new ActivityTracker();
 const commands = new Commands(activityTracker);
 const slashCommandHandler = new SlashCommandHandler(activityTracker);
+const adminCommandHandler = new AdminCommandHandler(activityTracker);
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -25,9 +27,10 @@ client.once('ready', async () => {
     
     try {
         console.log('Registering slash commands...');
+        const allCommands = [...slashCommands, ...adminSlashCommands];
         await rest.put(
             Routes.applicationGuildCommands(client.user.id, config.guildId),
-            { body: slashCommands.map(command => command.toJSON()) }
+            { body: allCommands.map(command => command.toJSON()) }
         );
         console.log('Slash commands registered successfully!');
     } catch (error) {
@@ -57,7 +60,10 @@ client.on('guildMemberRemove', (member) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-    await slashCommandHandler.handleInteraction(interaction);
+    const adminHandled = await adminCommandHandler.handleInteraction(interaction);
+    if (!adminHandled) {
+        await slashCommandHandler.handleInteraction(interaction);
+    }
 });
 
 client.login(config.token);
